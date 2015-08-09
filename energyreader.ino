@@ -82,10 +82,6 @@ void setup()
   // Fetch last known pulse count value from gw
   gw.request(CHILD_ID_POWER, V_VAR1);
 
-  // V_STATUS for preset resistor
-  // V_LIGHT_LEVEL (uncalibrated percentage) for analog read
-  // I_BATTERY_LEVEL för batterispänning
-
   lastSend = millis();
 
   if (debug) {
