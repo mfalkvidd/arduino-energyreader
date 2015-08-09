@@ -1,12 +1,30 @@
+#include <SPI.h>
+#include <MySensor.h>
+#define CHILD_ID_POWER 0
+#define CHILD_ID_LIGHT_LEVEL 1
+#define CHILD_ID_RESISTOR 2
+unsigned long lastSend;
+MyMessage msgPower(CHILD_ID_POWER, V_WATT);
+MyMessage msgLight(CHILD_ID_LIGHT_LEVEL, V_LIGHT_LEVEL);
+MyMessage msgResistor(CHILD_ID_RESISTOR, V_IMPEDANCE);
+MySensor gw;
+
+#define LOOPTIME 5000
+#define ULONG_MAX 4294967295
 #define MIN_BLINKS 2
-#define INTERRUPT 1 // Usually the interrupt = pin -2 (on uno/nano anyway)
+#define BLINK_INTERRUPT 1 // Interrupt 0 is used by the gw in MySensors
 #define LOW_PRESET_PIN 7
 #define LDR_ANALOG_PIN 14
 #define debug true
-volatile unsigned int blinks = 0;
+volatile unsigned int ledblinks = 0;
 unsigned int preset_resistance = 1000;
 unsigned int mainLoopCounter = 0;
 unsigned long lastReport = 0;
+unsigned int lastLightLevel = 0;
+unsigned int blinksSinceLast = 0;
+unsigned int batteryLevelPercent = 88; // TODO: Measure and set
+unsigned long watts = 0;
+
 
 void calibrate()
 {
@@ -39,16 +57,42 @@ void calibrate()
     pinMode(LOW_PRESET_PIN, INPUT);
     log("Too little light, disconnecting second resistor\n");
   }
+  lastLightLevel = val;
+}
 
+void incomingMessage(const MyMessage &message) {
+  if (message.type == V_VAR1) {
+    unsigned long oldPulseCount = message.getULong();
+    log("Received last pulse count from gw: ");
+    log(oldPulseCount);
+  }
 }
 
 void setup()
 {
+  gw.begin(incomingMessage);
+  // Send the sketch version information to the gateway and Controller
+  gw.sendSketchInfo("Energy Meter", "1.0");
+
+  // Register this device as power sensor
+  gw.present(CHILD_ID_POWER, V_WATT);
+  gw.present(CHILD_ID_LIGHT_LEVEL, V_LIGHT_LEVEL);
+  gw.present(CHILD_ID_RESISTOR, V_IMPEDANCE);
+
+  // Fetch last known pulse count value from gw
+  gw.request(CHILD_ID_POWER, V_VAR1);
+
+  // V_STATUS for preset resistor
+  // V_LIGHT_LEVEL (uncalibrated percentage) for analog read
+  // I_BATTERY_LEVEL för batterispänning
+
+  lastSend = millis();
+
   if (debug) {
-    Serial.begin(9600);
+    Serial.begin(115200);
     log("Debug is on\n");
   }
-  attachInterrupt(INTERRUPT, onPulse, RISING);
+  attachInterrupt(BLINK_INTERRUPT, onPulse, RISING);
 }
 
 void log(unsigned int number) {
@@ -69,16 +113,23 @@ void log(String text) {
 
 void loop()
 {
-  unsigned int blinksSinceLast = blinks;
-  blinks = 0;
+  gw.process();
+  blinksSinceLast = ledblinks;
+  ledblinks = 0;
+
   log("                                                                    ");
   log(blinksSinceLast);
   log(" interrupts have occurred, ");
   unsigned long timeNow = millis();
-  unsigned long timeSinceLast = timeNow - lastReport;
+  unsigned long timeSinceLast;
+  if (timeNow > lastReport) {
+    timeSinceLast = timeNow - lastReport;
+  } else { // Counter has wrapped around, which it does every 50 days
+    timeSinceLast = timeNow + (ULONG_MAX - lastReport);
+  }
   log(timeSinceLast);
   log(" milliseconds since last report. ");
-  unsigned long watts = (double)blinksSinceLast * 3600 / 10 * 1000 / timeSinceLast;
+  watts = blinksSinceLast * 3600.0 / 10.0 * 1000.0 / timeSinceLast;
   log(watts);
   log("W\n");
   lastReport = timeNow;
@@ -89,13 +140,28 @@ void loop()
     mainLoopCounter = 0;
     calibrate();
   }
-
-  delay(3000);
+  //sendResults();
+  gw.send(msgPower.set(watts, 1));
+  delay(LOOPTIME);
 }
-
-
 
 void onPulse()
 {
-  blinks++;
+  ledblinks++;
 }
+
+void sendResults() {
+  if (!gw.send(msgPower.set(watts, 1))) {
+    log("No ACK for power\n");
+  }
+  if (!gw.send(msgLight.set(lastLightLevel, 1))) {
+    log("No ACK for lightLevel\n");
+  }
+  if (!gw.send(msgResistor.set(preset_resistance, 1))) {
+    log("No ACK for resistance\n");
+  }
+  gw.sendBatteryLevel(batteryLevelPercent);
+}
+
+
+
