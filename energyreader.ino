@@ -119,11 +119,7 @@ void loop()
   log(" interrupts have occurred, ");
   unsigned long timeNow = millis();
   unsigned long timeSinceLast;
-  if (timeNow > lastReport) {
-    timeSinceLast = timeNow - lastReport;
-  } else { // Counter has wrapped around, which it does every 50 days
-    timeSinceLast = timeNow + (ULONG_MAX - lastReport);
-  }
+  timeSinceLast = timeNow - lastReport; // unsigned arithmetic will handle the overflow automatically
   log(timeSinceLast);
   log(" milliseconds since last report. ");
   watts = blinksSinceLast * 3600.0 / 10.0 * 1000.0 / timeSinceLast;
