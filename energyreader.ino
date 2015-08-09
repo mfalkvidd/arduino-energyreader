@@ -88,6 +88,7 @@ void setup()
     Serial.begin(115200);
     log("Debug is on\n");
   }
+  pinMode(LOW_PRESET_PIN, INPUT);
   attachInterrupt(BLINK_INTERRUPT, onPulse, RISING);
 }
 
