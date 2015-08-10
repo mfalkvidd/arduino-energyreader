@@ -15,7 +15,7 @@ MySensor gw;
 #define BLINK_INTERRUPT 1 // Interrupt 0 is used by the gw in MySensors
 #define LOW_PRESET_PIN 7
 #define LDR_ANALOG_PIN 14
-#define debug true
+#define mydebug true
 volatile unsigned int ledblinks = 0;
 unsigned int preset_resistance = 1000;
 unsigned int mainLoopCounter = 0;
@@ -84,7 +84,7 @@ void setup()
 
   lastSend = millis();
 
-  if (debug) {
+  if (mydebug) {
     Serial.begin(115200);
     log("Debug is on\n");
   }
@@ -93,17 +93,17 @@ void setup()
 }
 
 void log(unsigned int number) {
-  if (debug) {
+  if (mydebug) {
     Serial.print(number);
   }
 }
 void log(unsigned long number) {
-  if (debug) {
+  if (mydebug) {
     Serial.print(number);
   }
 }
 void log(String text) {
-  if (debug) {
+  if (mydebug) {
     Serial.print(text);
   }
 }
