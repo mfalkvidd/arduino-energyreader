@@ -110,6 +110,8 @@ void log(String text) {
 
 void loop()
 {
+  detachInterrupt(BLINK_INTERRUPT);
+  unsigned long timeNow = millis();
   gw.process();
   blinksSinceLast = ledblinks;
   ledblinks = 0;
@@ -117,7 +119,6 @@ void loop()
   log("                                                                    ");
   log(blinksSinceLast);
   log(" interrupts have occurred, ");
-  unsigned long timeNow = millis();
   unsigned long timeSinceLast;
   timeSinceLast = timeNow - lastReport; // unsigned arithmetic will handle the overflow automatically
   log(timeSinceLast);
@@ -125,7 +126,6 @@ void loop()
   watts = blinksSinceLast * 3600.0 / 10.0 * 1000.0 / timeSinceLast;
   log(watts);
   log("W\n");
-  lastReport = timeNow;
 
   mainLoopCounter++;
   if (mainLoopCounter == 10 || blinksSinceLast < MIN_BLINKS)
@@ -133,8 +133,10 @@ void loop()
     mainLoopCounter = 0;
     calibrate();
   }
-  //sendResults();
-  gw.send(msgPower.set(watts, 1));
+  sendResults();
+  lastReport = millis();
+  EIFR = bit (INTF1);  // clear flag for interrupt 1
+  attachInterrupt(BLINK_INTERRUPT, onPulse, RISING);
   delay(LOOPTIME);
 }
 
@@ -155,6 +157,4 @@ void sendResults() {
   }
   gw.sendBatteryLevel(batteryLevelPercent);
 }
-
-
 
