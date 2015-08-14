@@ -123,12 +123,15 @@ void loop()
   timeSinceLast = timeNow - lastReport; // unsigned arithmetic will handle the overflow automatically
   log(timeSinceLast);
   log(" milliseconds since last report. ");
-  watts = blinksSinceLast * 3600.0 / 10.0 * 1000.0 / timeSinceLast;
+  if (blinksSinceLast > MIN_BLINKS) {
+    // Only calculate new value if we got enough blinks. If we didn't get enough blinks, we're probably blinded and then we'd better report the last known value
+    watts = blinksSinceLast * 3600.0 * 1000 / 10.0 * 1000.0 / timeSinceLast; // 3600 seconds per hour, 1000 factor for Domoticz to be happy, 10,000 blinks per kWh
+  }
   log(watts);
   log("W\n");
 
   mainLoopCounter++;
-  if (mainLoopCounter == 10 || blinksSinceLast < MIN_BLINKS)
+  if (mainLoopCounter == 10)
   {
     mainLoopCounter = 0;
     calibrate();
